@@ -1,0 +1,167 @@
+<title>WakeUp 시안</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: 메뉴바 아이콘 3상태 줄 + 같은 팝오버의 3상태(무한 / 타이머 / 꺼짐)를 나란히 배치.
+   색은 상태를 알리는 용도로만 쓴다: 켜짐=Lamp, 꺼짐=Dusk. */
+:root{
+  --page:#EBEAE6; --fg:#1C1F26; --muted:#6D7482;
+  --pop:#F8F7F4; --pop-line:#D9D8D3; --chip:#ECEBE7; --track:#DAD9D4;
+  --lamp:#D98F1F; --lamp-ink:#1C1F26; --glow:rgba(217,143,31,.20);
+  --bar:#DCDBD6;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Apple SD Gothic Neo","Pretendard","Noto Sans KR",system-ui,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded","Hiragino Maru Gothic ProN",var(--font);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --page:#0F1013; --fg:#ECEBE7; --muted:#8C93A3;
+  --pop:#1D1F25; --pop-line:#2D3039; --chip:#2A2D35; --track:#32353F;
+  --lamp:#F0B04F; --lamp-ink:#15171C; --glow:rgba(240,176,79,.22);
+  --bar:#23252C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --page:#0F1013; --fg:#ECEBE7; --muted:#8C93A3;
+  --pop:#1D1F25; --pop-line:#2D3039; --chip:#2A2D35; --track:#32353F;
+  --lamp:#F0B04F; --lamp-ink:#15171C; --glow:rgba(240,176,79,.22);
+  --bar:#23252C; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--fg);font-family:var(--font);margin:0;
+  padding-block:32px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:1020px;margin:0 auto;display:flex;flex-direction:column;gap:32px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+h1{font-size:22px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
+header p{margin:0;color:var(--muted);font-size:14px;max-width:46ch;line-height:1.55}
+.theme{font:inherit;font-size:13px;color:var(--fg);background:var(--chip);border:0;border-radius:8px;padding:8px 12px;cursor:pointer}
+.theme:focus-visible,.chip:focus-visible,.apply:focus-visible,.sw:focus-visible,.step:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
+
+.bars{display:flex;flex-direction:column;gap:8px}
+.bars h2,.stage h2{font-size:14px;font-weight:600;margin:0;color:var(--muted)}
+.menubar{display:flex;gap:28px;flex-wrap:wrap;background:var(--bar);border-radius:10px;padding:10px 16px;align-items:center;font-size:12.5px}
+.menubar span{display:flex;align-items:center;gap:6px}
+.mi{width:18px;height:18px}
+
+.stage{display:flex;flex-direction:column;gap:12px}
+.pops{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:24px;justify-items:center}
+.cap{font-size:13px;color:var(--muted);text-align:center;margin-top:10px}
+
+.pop{width:290px;background:var(--pop);border:1px solid var(--pop-line);border-radius:14px;padding:16px;
+  box-shadow:0 18px 40px -18px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:16px}
+.head{display:flex;justify-content:space-between;align-items:center}
+.head b{font-size:14px;font-weight:600}
+.sw{width:38px;height:22px;border-radius:11px;border:0;background:var(--track);position:relative;cursor:pointer;transition:background .2s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.sw[aria-checked="true"]{background:var(--lamp)}
+.sw[aria-checked="true"]::after{transform:translateX(16px)}
+
+.dial{position:relative;width:176px;height:176px;margin:0 auto}
+.dial svg{width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
+.dial .glow{fill:var(--glow);opacity:0}
+.dial.on .glow{opacity:1}
+.track{fill:none;stroke:var(--track);stroke-width:6}
+.arc{fill:none;stroke:var(--lamp);stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset .5s ease,opacity .3s}
+.dial:not(.on) .arc{opacity:0}
+.dial:not(.on) .track{stroke-width:2}
+.inf .glow{animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.inf .glow{animation:none}.arc{transition:none}}
+.readout{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.time{font-family:var(--round);font-weight:300;font-size:36px;letter-spacing:-.01em;font-variant-numeric:tabular-nums;line-height:1.1}
+.off .time{color:var(--muted)}
+.sub{font-size:12px;color:var(--muted)}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:13px;color:var(--fg);background:var(--chip);border:0;border-radius:999px;padding:6px 12px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--lamp);color:var(--lamp-ink);font-weight:600}
+.custom{display:flex;align-items:center;gap:8px;font-size:13px}
+.custom .lbl{color:var(--muted);margin-right:auto}
+.num{display:flex;align-items:center;background:var(--chip);border-radius:8px;overflow:hidden}
+.num span{padding:0 6px;font-variant-numeric:tabular-nums;min-width:44px;text-align:center}
+.step{font:inherit;border:0;background:transparent;color:var(--muted);width:22px;height:26px;cursor:pointer}
+.apply{font:inherit;font-size:13px;border:0;border-radius:8px;padding:6px 12px;background:var(--fg);color:var(--pop);cursor:pointer}
+.foot{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted)}
+.foot label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.foot input{accent-color:var(--lamp)}
+.quit{color:var(--muted)}
+.note{margin:0;font-size:12.5px;color:var(--muted);line-height:1.6;max-width:70ch}
+</style>
+
+<main>
+  <header>
+    <div>
+      <h1>WakeUp 시안</h1>
+      <p>메뉴바 아이콘과 팝오버의 세 가지 상태입니다. 칩, 스위치, 단계 버튼은 눌러 볼 수 있습니다.</p>
+    </div>
+    <button class="theme" id="theme" type="button">라이트 / 다크 전환</button>
+  </header>
+
+  <section class="bars">
+    <h2>메뉴바 아이콘</h2>
+    <div class="menubar">
+      <span><svg class="mi" viewBox="0 0 18 18"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>켜짐, 무한</span>
+      <span><svg class="mi" viewBox="0 0 18 18"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-opacity=".28" stroke-width="2.2"/><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="37.7" stroke-dashoffset="15" transform="rotate(-90 9 9)"/></svg>1:42:08 켜짐, 시간제한</span>
+      <span style="color:var(--muted)"><svg class="mi" viewBox="0 0 18 18"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="1.6 2.2"/></svg>꺼짐</span>
+    </div>
+  </section>
+
+  <section class="stage">
+    <h2>팝오버</h2>
+    <div class="pops" id="pops"></div>
+  </section>
+
+  <p class="note">덮개를 닫으면 설정과 상관없이 맥이 잠들 수 있습니다. 이 안내는 팝오버 하단의 도움말에서 보여줍니다.</p>
+</main>
+
+<script>
+var PRESETS=[null,30,60,120,240,480];
+var fmt=function(s){s=Math.max(0,Math.round(s));var h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=s%60,p=function(n){return String(n).padStart(2,"0")};return h?h+":"+p(m)+":"+p(r):p(m)+":"+p(r)};
+var label=function(m){if(m==null)return"무한";var h=Math.floor(m/60),n=m%60;return h?(n?h+"시간 "+n+"분":h+"시간"):n+"분"};
+var CIRC=2*Math.PI*78;
+var states=[
+  {on:true,minutes:null,total:0,left:0,h:1,m:30,disp:true,cap:"켜짐, 무한"},
+  {on:true,minutes:120,total:7200,left:6128,h:1,m:30,disp:true,cap:"켜짐, 2시간 중 1:42:08 남음"},
+  {on:false,minutes:60,total:0,left:0,h:1,m:30,disp:true,cap:"꺼짐, 다음 시작은 1시간"}
+];
+var host=document.getElementById("pops");
+
+function view(s,i){
+  var inf=s.on&&s.minutes==null;
+  var frac=s.on&&s.minutes!=null?s.left/s.total:1;
+  var big=!s.on?"꺼짐":inf?"∞":fmt(s.left);
+  var sub=!s.on?"다음 시작: "+label(s.minutes):inf?"지속 시간 무한":"남은 시간";
+  var chips=PRESETS.map(function(p){
+    return '<button class="chip" type="button" data-act="preset" data-v="'+(p==null?"":p)+'" aria-pressed="'+(s.on&&s.minutes===p)+'">'+label(p)+'</button>';
+  }).join("");
+  return '<div><div class="pop">'+
+    '<div class="head"><b>'+(s.on?"잠들기 방지 중":"꺼짐")+'</b>'+
+    '<button class="sw" type="button" role="switch" aria-label="잠들기 방지" aria-checked="'+s.on+'" data-act="toggle"></button></div>'+
+    '<div class="dial '+(s.on?"on ":"off ")+(inf?"inf":"")+'">'+
+      '<svg viewBox="0 0 176 176"><circle class="glow" cx="88" cy="88" r="84"/>'+
+      '<circle class="track" cx="88" cy="88" r="78"/>'+
+      '<circle class="arc" cx="88" cy="88" r="78" stroke-dasharray="'+CIRC+'" stroke-dashoffset="'+(CIRC*(1-frac))+'"/></svg>'+
+      '<div class="readout"><div class="time">'+big+'</div><div class="sub">'+sub+'</div></div></div>'+
+    '<div class="chips">'+chips+'</div>'+
+    '<div class="custom"><span class="lbl">직접 설정</span>'+
+      '<div class="num"><button class="step" type="button" aria-label="시간 줄이기" data-act="h-">−</button><span>'+s.h+'시간</span><button class="step" type="button" aria-label="시간 늘리기" data-act="h+">+</button></div>'+
+      '<div class="num"><button class="step" type="button" aria-label="분 줄이기" data-act="m-">−</button><span>'+s.m+'분</span><button class="step" type="button" aria-label="분 늘리기" data-act="m+">+</button></div>'+
+      '<button class="apply" type="button" data-act="apply">적용</button></div>'+
+    '<div class="foot"><label><input type="checkbox" data-act="disp"'+(s.disp?" checked":"")+'> 화면도 켜 둠</label><span class="quit">종료</span></div>'+
+    '</div><div class="cap">'+s.cap+'</div></div>';
+}
+function start(s,min){s.on=true;s.minutes=min;s.total=min?min*60:0;s.left=s.total;s.cap=min?"켜짐, "+label(min)+" 설정":"켜짐, 무한"}
+function render(){host.innerHTML=states.map(view).join("")}
+host.addEventListener("click",function(e){
+  var b=e.target.closest("[data-act]");if(!b)return;
+  var i=[].indexOf.call(host.children,b.closest(".pops > div")),s=states[i],a=b.dataset.act;
+  if(a=="preset")start(s,b.dataset.v===""?null:+b.dataset.v);
+  else if(a=="toggle"){if(s.on){s.on=false;s.cap="꺼짐, 다음 시작은 "+label(s.minutes)}else start(s,s.minutes)}
+  else if(a=="h+")s.h=Math.min(99,s.h+1);
+  else if(a=="h-")s.h=Math.max(0,s.h-1);
+  else if(a=="m+")s.m=(s.m+5)%60;
+  else if(a=="m-")s.m=(s.m+55)%60;
+  else if(a=="apply"){var t=s.h*60+s.m;if(t>0)start(s,t)}
+  else if(a=="disp")s.disp=b.checked;
+  render();
+});
+render();
+document.getElementById("theme").addEventListener("click",function(){
+  var r=document.documentElement,dark=r.dataset.theme?r.dataset.theme=="dark":matchMedia("(prefers-color-scheme:dark)").matches;
+  r.dataset.theme=dark?"light":"dark";
+});
+</script>
